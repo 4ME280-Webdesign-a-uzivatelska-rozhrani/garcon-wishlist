@@ -2,46 +2,101 @@
 <html lang="cs">
 <head>
   <meta charset="UTF-8">
-  <title>Dynamický Wishlist</title>
+  <title>Wishlist</title>
   <style>
-    .wishlist { list-style: none; padding: 0; }
-    .wishlist li { margin-bottom: 20px; }
-    .wishlist img { max-width: 200px; height: auto; }
-    .price { font-weight: bold; }
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+    .item {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+    .item img {
+      max-width: 150px;
+      display: block;
+      margin-bottom: 1rem;
+    }
+    .item input[type="text"] {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .item button {
+      padding: 0.5rem 1rem;
+    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 </head>
 <body>
-  <div id="wishlist-container"></div>
+
+  <h1>🎁 Wishlist</h1>
+  <div id="wishlist"></div>
 
   <script>
+    const BIN_ID = '683040c98561e97a501a6fc5';
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+    const MASTER_KEY = '$2a$10$ZLmIcv45IuJVhzNIhZLvJ.VshVB.8Bbelg9CU3u6TL3NSoToF5REG'; // ← Vlož sem svůj klíč
+
     async function loadWishlist() {
-      try {
-        const response = await fetch('https://cdn.jsdelivr.net/gh/4ME280-Webdesign-a-uzivatelska-rozhrani/garcon-wishlist@a5b2a5c/wishlist.md');
-        const markdown = await response.text();
-
-        // Získání Front Matter YAML
-        const yamlContent = markdown.match(/^---\n([\s\S]+?)\n---/);
-        if (!yamlContent) {
-          throw new Error('YAML Front Matter nenalezen.');
+      const res = await fetch(API_URL, {
+        headers: {
+          'X-Master-Key': MASTER_KEY
         }
+      });
+      const data = await res.json();
+      renderWishlist(data.record.wishlist);
+    }
 
-        const yamlData = jsyaml.load(yamlContent[1]);
+    function renderWishlist(wishlist) {
+      const container = document.getElementById('wishlist');
+      wishlist.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'item';
 
-        const wishlistHTML = yamlData.wishlist.map(item => `
-          <li>
-            <a href="${item.url}">
-              <img src="${item.image}" alt="${item.product}">
-              <h2>${item.product}</h2>
-            </a>
-            <p class="price">${item.price}</p>
-          </li>
-        `).join('');
+        div.innerHTML = `
+          <h2>${item.product}</h2>
+          <img src="${item.image}" alt="${item.product}">
+          <p><a href="${item.url}" target="_blank">Odkaz na produkt</a></p>
+          <p><strong>Cena:</strong> ${item.price}</p>
+          <p><strong>Rezervováno:</strong> <em>${item.reserved_by ?? '—'}</em></p>
+          <input type="text" placeholder="Zadej své jméno" id="input-${index}">
+          <button onclick="reserveGift(${index})">Rezervovat</button>
+        `;
+        container.appendChild(div);
+      });
 
-        document.getElementById('wishlist-container').innerHTML = `<ul class="wishlist">${wishlistHTML}</ul>`;
-      } catch (error) {
-        console.error('Chyba při načítání wishlistu:', error);
-        document.getElementById('wishlist-container').innerHTML = `<p>Chyba při načítání wishlistu.</p>`;
+      // Ulož data pro pozdější PUT
+      window.currentWishlist = wishlist;
+    }
+
+    async function reserveGift(index) {
+      const name = document.getElementById(`input-${index}`).value.trim();
+      if (!name) {
+        alert('Zadej své jméno.');
+        return;
+      }
+
+      // Aktualizuj jméno v seznamu
+      window.currentWishlist[index].reserved_by = name;
+
+      // Pošli PUT požadavek
+      const res = await fetch(API_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': MASTER_KEY
+        },
+        body: JSON.stringify({ wishlist: window.currentWishlist })
+      });
+
+      if (res.ok) {
+        alert('Dárek byl úspěšně rezervován.');
+        location.reload();
+      } else {
+        alert('Nepodařilo se uložit. Zkontroluj klíč nebo síť.');
       }
     }
 
