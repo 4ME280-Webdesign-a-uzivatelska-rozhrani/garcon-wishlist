@@ -37,15 +37,10 @@
 
   <script>
     const BIN_ID = '68305e9e8a456b7966a459ff'; // '683040c98561e97a501a6fc5';
-    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-    const MASTER_KEY = '$2a$10$ZLmIcv45IuJVhzNIhZLvJ.VshVB.8Bbelg9CU3u6TL3NSoToF5REG'; // ← Vlož sem svůj klíč
-
+    const PROXY = `https://garcon-proxy.martin-kopta.workers.dev/?bin=${BIN_ID}`;
+  
     async function loadWishlist() {
-      const res = await fetch(API_URL, {
-        headers: {
-          'X-Master-Key': MASTER_KEY
-        }
-      });
+      const res = await fetch(PROXY);
       const data = await res.json();
       renderWishlist(data.record.wishlist);
     }
